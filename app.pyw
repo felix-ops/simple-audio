@@ -26,7 +26,7 @@ class SimpleAudioPlayer:
     def __init__(self, root):
         self.root = root
         self.root.title("Simple Audio Player")
-        self.root.geometry("380x110")
+        self.root.geometry("480x115")
         self.root.configure(bg="#f7f7f7")
         self.root.resizable(False, False)
 
@@ -52,21 +52,35 @@ class SimpleAudioPlayer:
         browse_btn = ttk.Button(header, text="Browse", command=self.browse_file, takefocus=0)
         browse_btn.pack(side="right")
 
-        # --- Time Display ---
-        time_frame = tk.Frame(root, bg="#f7f7f7")
-        time_frame.pack(fill="x", padx=16, pady=(0, 0))
+        # --- Combined Time and Progress Bar Row ---
+        progress_row_frame = tk.Frame(root, bg="#f7f7f7")
+        progress_row_frame.pack(fill="x", padx=8, pady=(0, 4)) # outer padding
 
-        self.elapsed_label = tk.Label(time_frame, text="00:00", bg="#f7f7f7", fg="#444", font=("Consolas", 9))
-        self.elapsed_label.pack(side="left")
+        # Elapsed Label (Left) - Packed First
+        self.elapsed_label = tk.Label(progress_row_frame, text="00:00", bg="#f7f7f7", fg="#444", font=("Consolas", 9))
+        self.elapsed_label.pack(side="left", padx=(4, 6))
 
-        self.total_label = tk.Label(time_frame, text="00:00", bg="#f7f7f7", fg="#444", font=("Consolas", 9))
-        self.total_label.pack(side="right")
+        # Total Label (Right) - Packed Second (to reserve its space)
+        self.total_label = tk.Label(progress_row_frame, text="00:00", bg="#f7f7f7", fg="#444", font=("Consolas", 9))
+        self.total_label.pack(side="right", padx=(6, 4)) # side="right" must be explicitly set
 
-        # --- Progress bar (custom drawn for crispness) ---
+        # --- Progress bar (custom drawn for crispness) (Middle, Expands) - Packed LAST ---
         self.progress = tk.DoubleVar()
-        self.progress_frame = tk.Canvas(root, bg="#f7f7f7", height=6, bd=0, highlightthickness=0, relief="flat", width=340)
-        self.progress_frame.pack(pady=(0, 4))
-        self.progress_bar = self.progress_frame.create_rectangle(0, 0, 0, 6, fill="#0078d7", width=0)
+        self.progress_height = 10  # increased thickness
+        self.progress_frame = tk.Canvas(progress_row_frame, bg="#f7f7f7", height=self.progress_height,
+                                        bd=0, highlightthickness=0, relief="flat")
+        # Pack to the left, fill horizontally, and expand to take space
+        self.progress_frame.pack(side="left", fill="x", expand=True, padx=6)
+
+
+        # Create background (unprogressed) track and progress bar
+        # Initial width of 1 is enough, _draw_progress will fix it on update
+        self.track_bg = self.progress_frame.create_rectangle(
+            0, 0, 1, self.progress_height, fill="#e0e0e0", width=0
+        )
+        self.progress_bar = self.progress_frame.create_rectangle(
+            0, 0, 0, self.progress_height, fill="#0078d7", width=0
+        )
 
         self.progress_frame.bind("<Button-1>", self.on_click)
         self.progress_frame.bind("<B1-Motion>", self.on_drag)
@@ -80,7 +94,9 @@ class SimpleAudioPlayer:
             self.btn_frame, text="▶", font=("Segoe UI Symbol", 11, "bold"),
             command=self.toggle_play_pause, relief="flat",
             bg="#0078d7", fg="white", width=5, height=1,
-            cursor="hand2", activebackground="#005a9e", bd=0
+            cursor="hand2", activebackground="#005a9e", bd=0,
+            takefocus=0, # Already present
+            highlightthickness=0 # <-- FIX: Removes the focus outline
         )
         self.play_button.pack()
 
@@ -184,7 +200,10 @@ class SimpleAudioPlayer:
     def _draw_progress(self):
         width = self.progress_frame.winfo_width()
         percent = self.progress.get() / 100
-        self.progress_frame.coords(self.progress_bar, 0, 0, width * percent, 6)
+        # Ensure correct coordinates are passed based on current width
+        self.progress_frame.coords(self.track_bg, 0, 0, width, self.progress_height)
+        self.progress_frame.coords(self.progress_bar, 0, 0, width * percent, self.progress_height)
+
 
     def get_elapsed(self):
         return self.paused_elapsed if not self.playing else time.time() - self.start_time
