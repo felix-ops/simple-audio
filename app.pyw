@@ -7,7 +7,7 @@ import threading
 import time
 import keyboard
 import os
-import ctypes  # <-- add this
+import ctypes
 
 # Fix blurry UI on Windows (DPI scaling)
 try:
