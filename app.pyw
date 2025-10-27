@@ -7,7 +7,9 @@ import threading
 import time
 import keyboard
 import os
-import ctypes  # <-- add this
+import ctypes  
+import json
+
 
 # Fix blurry UI on Windows (DPI scaling)
 try:
@@ -117,6 +119,12 @@ class SimpleAudioPlayer:
 
         # This prevents the spacebar from activating the 'Browse' button's command.
         self.root.focus_set()
+
+        # Load last session
+        self.root.after(500, self.load_state)
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        
     # ---- File Selection ----
     def browse_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("MP3 Files", "*.mp3")])
@@ -147,6 +155,9 @@ class SimpleAudioPlayer:
 
     def toggle_play_pause(self):
         if not self.file_path: return
+
+        self.save_state()
+
         if self.playing:
             self.paused_elapsed = self.get_elapsed()
             pygame.mixer.music.pause()
@@ -166,6 +177,7 @@ class SimpleAudioPlayer:
             pygame.mixer.music.play(start=new_time)
             self.start_time = time.time() - new_time
         self.update_labels()
+        self.save_state()
 
     # ---- Progress Bar and Timing ----
     def on_click(self, event):
@@ -219,7 +231,51 @@ class SimpleAudioPlayer:
         while True:
             if self.file_path and self.length > 0:
                 self.update_labels()
+                # Periodically save current progress
+                if self.playing:
+                    self.save_state()
             time.sleep(0.2)
+
+    CACHE_FILE = "player_cache.json"
+
+    def save_state(self):
+        """Save the current file and playback time."""
+        if not self.file_path:
+            return
+        state = {
+            "path": self.file_path,
+            "time": self.get_elapsed()
+        }
+        try:
+            with open(self.CACHE_FILE, "w", encoding="utf-8") as f:
+                json.dump(state, f)
+        except Exception as e:
+            print("Error saving cache:", e)
+
+    def load_state(self):
+        """Load the last played file and position if available."""
+        if not os.path.exists(self.CACHE_FILE):
+            return
+        try:
+            with open(self.CACHE_FILE, "r", encoding="utf-8") as f:
+                state = json.load(f)
+            path = state.get("path")
+            t = state.get("time", 0)
+            if path and os.path.exists(path):
+                self.load_audio(path)
+                # Start paused at last position
+                pygame.mixer.music.pause()
+                self.playing = False
+                self.paused_elapsed = t
+                self.update_labels()
+                self.play_button.config(text="▶")
+                self.label.config(text=f"⏪ Resumed {os.path.basename(path)}")
+        except Exception as e:
+            print("Error loading cache:", e)
+
+    def on_close(self):
+        self.save_state()
+        self.root.destroy()
 
 
 if __name__ == "__main__":
