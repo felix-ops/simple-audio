@@ -5,7 +5,7 @@ import pygame
 from mutagen.mp3 import MP3
 import threading
 import time
-import keyboard
+from pynput import keyboard
 import os
 import ctypes  
 import json
@@ -113,9 +113,12 @@ class SimpleAudioPlayer:
         threading.Thread(target=self.update_ui, daemon=True).start()
 
         # --- Global Hotkeys ---
-        keyboard.add_hotkey("a", lambda: self.seek(-5))
-        keyboard.add_hotkey("space", self.toggle_play_pause)
-        keyboard.add_hotkey("d", lambda: self.seek(5))
+        listener = keyboard.GlobalHotKeys({
+            'a': lambda: self.seek(-5),
+            '<space>': self.toggle_play_pause,
+            'd': lambda: self.seek(5)
+        })
+        listener.start()
 
         # This prevents the spacebar from activating the 'Browse' button's command.
         self.root.focus_set()
