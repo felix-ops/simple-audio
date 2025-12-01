@@ -1,4 +1,4 @@
-# Minimalist Audiobook Player 🎧
+# Simple Audio Player 🎧
 
 A lightweight, distraction-free MP3 player designed for multitasking.
 
